@@ -190,6 +190,7 @@ from litellm.types.router import (
     SearchToolTypedDict,
     TaggedPreRoutingStrategy,
 )
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.services import ServiceTypes
 from litellm.types.utils import (
     PROMPT_QUOTING_ROUTING_DECISION_FIELDS,
@@ -367,6 +368,8 @@ class Router:
         assistants_config: AssistantsTypedDict | None = None,
         ## SEARCH API ##
         search_tools: list[SearchToolTypedDict] | None = None,
+        ## EXTRACT API ##
+        extract_tools: list[ExtractToolTypedDict] | None = None,
         ## GUARDRAIL API ##
         guardrail_list: list[GuardrailTypedDict] | None = None,
         ## CACHING ##
@@ -521,6 +524,7 @@ class Router:
 
         self.assistants_config = assistants_config
         self.search_tools = search_tools or []
+        self.extract_tools = extract_tools or []
         self.guardrail_list = guardrail_list or []
         self.deployment_names: list = []  # names of models under litellm_params. ex. azure/chatgpt-v-2
         self.deployment_latency_map = {}
