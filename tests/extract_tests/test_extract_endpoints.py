@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 
 from litellm.proxy._types import LitellmUserRoles, UserAPIKeyAuth
+from litellm.proxy.auth.route_checks import RouteChecks
 from litellm.proxy.extract_endpoints import endpoints
 from litellm.proxy.extract_endpoints.security import (
     UnsafeExtractURL,
@@ -42,6 +43,12 @@ def test_extract_permission_allows_explicit_tool_and_admin() -> None:
         extract_tool_name="web-extract",
         user_api_key_dict=UserAPIKeyAuth(user_role=LitellmUserRoles.PROXY_ADMIN),
     )
+
+
+def test_extract_routes_are_inference_routes() -> None:
+    assert RouteChecks.is_llm_api_route("/v1/extract/web-extract") is True
+    assert RouteChecks.is_llm_api_route("/extract/web-extract") is True
+    assert RouteChecks.is_llm_api_route("/firecrawl/v2/scrape") is True
 
 
 @pytest.mark.asyncio
