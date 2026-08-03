@@ -1019,6 +1019,7 @@ class LiteLLM_ObjectPermissionBase(LiteLLMPydanticObjectBase):
     agent_access_groups: Optional[List[str]] = None
     models: Optional[List[str]] = None
     search_tools: Optional[List[str]] = None
+    extract_tools: Optional[List[str]] = None
     mcp_tool_search_enabled: Optional[bool] = None
 
 

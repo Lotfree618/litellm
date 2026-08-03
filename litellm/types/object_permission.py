@@ -24,4 +24,5 @@ class ObjectPermissionDict(TypedDict, total=False):
     agent_access_groups: Optional[list[str]]
     models: Optional[list[str]]
     search_tools: Optional[list[str]]
+    extract_tools: Optional[list[str]]
     mcp_tool_search_enabled: Optional[bool]
