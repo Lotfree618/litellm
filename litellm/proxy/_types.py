@@ -409,6 +409,10 @@ class LiteLLMRoutes(enum.Enum):
         "/v1/search",
         "/search/{search_tool_name}",
         "/v1/search/{search_tool_name}",
+        # extract
+        "/extract/{extract_tool_name}",
+        "/v1/extract/{extract_tool_name}",
+        "/firecrawl/v2/scrape",
         # OCR
         "/ocr",
         "/v1/ocr",
