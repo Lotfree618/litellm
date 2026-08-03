@@ -554,6 +554,7 @@ from litellm.proxy.rerank_endpoints.endpoints import router as rerank_router
 from litellm.proxy.response_api_endpoints.endpoints import router as response_router
 from litellm.proxy.route_llm_request import route_request
 from litellm.proxy.search_endpoints.endpoints import router as search_router
+from litellm.proxy.extract_endpoints.endpoints import router as extract_router
 from litellm.proxy.shutdown.graceful_shutdown_manager import GracefulShutdownManager
 from litellm.proxy.spend_tracking.budget_reservation import get_budget_window_start
 from litellm.proxy.spend_tracking.spend_management_endpoints import (
@@ -635,6 +636,7 @@ from litellm.types.router import (
     SearchToolTypedDict,
     updateDeployment,
 )
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.router import ModelInfo as RouterModelInfo
 from litellm.types.scheduler import DefaultPriorities
 from litellm.types.secret_managers.main import (
@@ -4415,6 +4417,39 @@ class ProxyConfig:
 
         return search_tools_parsed if search_tools_parsed else None
 
+    def parse_extract_tools(self, config: dict) -> Optional[List[ExtractToolTypedDict]]:
+        extract_tools_raw = config.get("extract_tools")
+        if not extract_tools_raw:
+            return None
+
+        extract_tools_parsed: List[ExtractToolTypedDict] = []
+        for index, extract_tool in enumerate(extract_tools_raw):
+            tool = copy.deepcopy(extract_tool)
+            extract_tool_name = tool.get("extract_tool_name", "")
+            litellm_params = tool.get("litellm_params", {})
+            if not extract_tool_name:
+                raise ValueError("extract_tool_name is required")
+            if litellm_params.get("extract_provider") != "firecrawl":
+                raise ValueError(
+                    f"Unsupported extract_provider for {extract_tool_name}: {litellm_params.get('extract_provider')}"
+                )
+            for key, value in list(litellm_params.items()):
+                if isinstance(value, str) and value.startswith("os.environ/"):
+                    resolved = get_secret(value.removeprefix("os.environ/"))
+                    if resolved is None:
+                        raise ValueError(f"Missing environment variable for extract tool {extract_tool_name}: {value}")
+                    litellm_params[key] = resolved
+            if not litellm_params.get("api_key"):
+                raise ValueError(f"api_key is required for extract tool {extract_tool_name}")
+            if float(litellm_params.get("weight") or 1) <= 0:
+                raise ValueError(f"weight must be positive for extract tool {extract_tool_name}")
+            if int(litellm_params.get("max_parallel_requests") or 0) < 0:
+                raise ValueError(f"max_parallel_requests cannot be negative for extract tool {extract_tool_name}")
+            tool["litellm_params"] = litellm_params
+            tool.setdefault("extract_tool_id", f"{extract_tool_name}-{index}")
+            extract_tools_parsed.append(tool)  # type: ignore[arg-type]
+        return extract_tools_parsed or None
+
     # Environment variable keys that must not be overridden via config because
     # they can alter process execution, library loading, or network routing.
     _BLOCKED_ENV_KEYS: set[str] = {
@@ -5148,6 +5183,8 @@ class ProxyConfig:
 
         ## SEARCH TOOLS SETTINGS
         search_tools: Final[list[SearchToolTypedDict] | None] = self.parse_search_tools(config)
+        ## EXTRACT TOOLS SETTINGS
+        extract_tools: Final[list[ExtractToolTypedDict] | None] = self.parse_extract_tools(config)
 
         ## SANDBOX TOOLS SETTINGS
         from litellm.sandbox.sandbox_tools import register_sandbox_tools
@@ -5174,6 +5211,7 @@ class ProxyConfig:
             exclude_args: Final = {
                 "model_list",
                 "search_tools",
+                "extract_tools",
             }
 
             available_args: Final = [x for x in litellm.Router.get_valid_args() if x not in exclude_args]
@@ -5199,6 +5237,7 @@ class ProxyConfig:
             **router_params,
             assistants_config=assistants_config,
             search_tools=search_tools,
+            extract_tools=extract_tools,
             router_general_settings=RouterGeneralSettings(
                 async_only_mode=True  # only init async clients
             ),
@@ -5624,9 +5663,11 @@ class ProxyConfig:
         # Load config separately so a timeout here doesn't block model loading
         config_data: dict = {}
         search_tools = None
+        extract_tools = None
         try:
             config_data = await proxy_config.get_config()
             search_tools = self.parse_search_tools(config_data)
+            extract_tools = self.parse_extract_tools(config_data)
         except Exception as e:
             verbose_proxy_logger.warning(
                 "Failed to load config in _update_llm_router: %s. "
@@ -5649,9 +5690,8 @@ class ProxyConfig:
                 verbose_proxy_logger.debug("len new_models: %s", len(models_list))
 
                 _model_list: Final[list] = self.decrypt_model_list_from_db(new_models=models_list)
-                # Only create router if we have models or search_tools to route
-                # Router can function with model_list=[] if search_tools are configured
-                if len(_model_list) > 0 or search_tools:
+                # Router can function with model_list=[] when tool deployments are configured.
+                if len(_model_list) > 0 or search_tools or extract_tools:
                     verbose_proxy_logger.debug("_model_list: %s", _model_list)
                     llm_router = litellm.Router(
                         model_list=_model_list,
@@ -5659,6 +5699,7 @@ class ProxyConfig:
                             async_only_mode=True  # only init async clients
                         ),
                         search_tools=search_tools,
+                        extract_tools=extract_tools,
                         ignore_invalid_deployments=True,
                     )
                     verbose_proxy_logger.debug("updated llm_router: %s", llm_router)
@@ -5666,6 +5707,8 @@ class ProxyConfig:
                 verbose_proxy_logger.debug("len new_models: %s", len(models_list))
                 if search_tools is not None and llm_router is not None:
                     llm_router.search_tools = search_tools
+                if extract_tools is not None and llm_router is not None:
+                    llm_router.extract_tools = extract_tools
                 ## DELETE MODEL LOGIC
                 still_desired_ids = await self._delete_deployment(db_models=models_list)
 
@@ -16604,6 +16647,7 @@ app.include_router(rag_router)
 app.include_router(video_router)
 app.include_router(container_router)
 app.include_router(search_router)
+app.include_router(extract_router)
 app.include_router(image_router)
 app.include_router(fine_tuning_router)
 app.include_router(credential_router)

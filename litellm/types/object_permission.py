@@ -22,4 +22,5 @@ class ObjectPermissionDict(TypedDict, total=False):
     agent_access_groups: list[str] | None
     models: list[str] | None
     search_tools: list[str] | None
+    extract_tools: list[str] | None
     mcp_tool_search_enabled: bool | None
