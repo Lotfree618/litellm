@@ -201,6 +201,7 @@ from litellm.types.router import (
     SearchToolTypedDict,
     TaggedPreRoutingStrategy,
 )
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.services import ServiceTypes
 from litellm.types.utils import (
     CustomPricingLiteLLMParams,
@@ -337,6 +338,8 @@ class Router:
         assistants_config: Optional[AssistantsTypedDict] = None,
         ## SEARCH API ##
         search_tools: Optional[List[SearchToolTypedDict]] = None,
+        ## EXTRACT API ##
+        extract_tools: Optional[List[ExtractToolTypedDict]] = None,
         ## GUARDRAIL API ##
         guardrail_list: Optional[List[GuardrailTypedDict]] = None,
         ## CACHING ##
@@ -491,6 +494,7 @@ class Router:
 
         self.assistants_config = assistants_config
         self.search_tools = search_tools or []
+        self.extract_tools = extract_tools or []
         self.guardrail_list = guardrail_list or []
         self.deployment_names: List = []  # names of models under litellm_params. ex. azure/chatgpt-v-2
         self.deployment_latency_map = {}

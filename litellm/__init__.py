@@ -2317,6 +2317,11 @@ def __getattr__(name: str) -> Any:
 
         return locals()[name]
 
+    if name in {"aextract", "extract"}:
+        from litellm.extract import aextract, extract
+
+        return {"aextract": aextract, "extract": extract}[name]
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
