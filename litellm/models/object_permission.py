@@ -24,4 +24,5 @@ class LiteLLM_ObjectPermissionTable(LiteLLMPydanticObjectBase):
     mcp_toolsets: Optional[List[str]] = None
     blocked_tools: Optional[List[str]] = []
     search_tools: Optional[List[str]] = []
+    extract_tools: Optional[List[str]] = []
     mcp_tool_search_enabled: Optional[bool] = None

@@ -90,3 +90,25 @@ async def test_redirect_chain_revalidates_redirect_target() -> None:
     async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(UnsafeExtractURL):
             await validate_public_redirect_chain("https://93.184.216.34/start", client=client)
+
+
+def test_extract_tools_permission_is_persistable_in_object_permission_schema() -> None:
+    from pathlib import Path
+
+    from litellm.models.object_permission import LiteLLM_ObjectPermissionTable
+
+    permission = LiteLLM_ObjectPermissionTable(
+        object_permission_id="op-test",
+        extract_tools=["web-extract"],
+    )
+    assert permission.extract_tools == ["web-extract"]
+
+    schema_paths = [
+        Path("schema.prisma"),
+        Path("litellm/proxy/schema.prisma"),
+        Path("litellm-proxy-extras/litellm_proxy_extras/schema.prisma"),
+    ]
+    expected = 'extract_tools         String[]       @default([])'
+    schemas = [path.read_text() for path in schema_paths]
+    assert all(expected in schema for schema in schemas)
+    assert schemas[0] == schemas[1] == schemas[2]
