@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import ORJSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -26,6 +26,20 @@ class FirecrawlScrapeRequest(BaseModel):
     include_tags: List[str] = Field(default_factory=list, alias="includeTags")
     exclude_tags: List[str] = Field(default_factory=list, alias="excludeTags")
     max_age: Optional[int] = Field(default=None, alias="maxAge", ge=0)
+    skip_tls_verification: Optional[bool] = Field(
+        default=None, alias="skipTlsVerification"
+    )
+    remove_base64_images: Optional[bool] = Field(
+        default=None, alias="removeBase64Images"
+    )
+    fast_mode: Optional[bool] = Field(default=None, alias="fastMode")
+    block_ads: Optional[bool] = Field(default=None, alias="blockAds")
+    store_in_cache: Optional[bool] = Field(default=None, alias="storeInCache")
+    mobile: Optional[bool] = None
+    # firecrawl-py v2 attaches its SDK identity to every request. This is
+    # transport metadata, not an extract option, so LiteLLM deliberately
+    # accepts it without forwarding it downstream.
+    origin: Optional[str] = Field(default=None, max_length=256)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -111,20 +125,30 @@ async def extract_endpoint(
 
 
 @router.post(
-    "/firecrawl/v2/scrape",
+    "/v2/scrape",
     dependencies=[Depends(user_api_key_auth)],
     response_class=ORJSONResponse,
     tags=["extract"],
 )
 async def firecrawl_scrape_compatibility_endpoint(
-    request: Request,
     scrape_request: FirecrawlScrapeRequest,
     user_api_key_dict: UserAPIKeyAuth = Depends(user_api_key_auth),
 ) -> Dict[str, Any]:
-    del request
     extract_tool_name = "web-extract"
     _authorize_extract_tool(extract_tool_name=extract_tool_name, user_api_key_dict=user_api_key_dict)
     try:
+        provider_options = {
+            key: value
+            for key, value in {
+                "skipTlsVerification": scrape_request.skip_tls_verification,
+                "removeBase64Images": scrape_request.remove_base64_images,
+                "fastMode": scrape_request.fast_mode,
+                "blockAds": scrape_request.block_ads,
+                "storeInCache": scrape_request.store_in_cache,
+                "mobile": scrape_request.mobile,
+            }.items()
+            if value is not None
+        }
         extract_request = ExtractRequest(
             url=scrape_request.url,
             formats=["raw_html" if item == "rawHtml" else item for item in scrape_request.formats],
@@ -132,6 +156,7 @@ async def firecrawl_scrape_compatibility_endpoint(
             include_tags=scrape_request.include_tags,
             exclude_tags=scrape_request.exclude_tags,
             max_age=scrape_request.max_age,
+            provider_options=provider_options,
         )
     except ValueError as error:
         raise HTTPException(

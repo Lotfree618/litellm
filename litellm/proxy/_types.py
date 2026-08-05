@@ -412,7 +412,7 @@ class LiteLLMRoutes(enum.Enum):
         # extract
         "/extract/{extract_tool_name}",
         "/v1/extract/{extract_tool_name}",
-        "/firecrawl/v2/scrape",
+        "/v2/scrape",
         # OCR
         "/ocr",
         "/v1/ocr",

@@ -7,7 +7,16 @@ from litellm.types.extract import ExtractContents, ExtractData, ExtractRequest, 
 
 class FirecrawlExtractConfig(BaseExtractConfig):
     FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2"
-    ALLOWED_PROVIDER_OPTIONS = frozenset()
+    ALLOWED_PROVIDER_OPTIONS = frozenset(
+        {
+            "skipTlsVerification",
+            "removeBase64Images",
+            "fastMode",
+            "blockAds",
+            "storeInCache",
+            "mobile",
+        }
+    )
 
     @staticmethod
     def ui_friendly_name() -> str:
@@ -53,6 +62,9 @@ class FirecrawlExtractConfig(BaseExtractConfig):
             payload["excludeTags"] = request.exclude_tags
         if request.max_age is not None:
             payload["maxAge"] = request.max_age
+        for key in self.ALLOWED_PROVIDER_OPTIONS:
+            if key in request.provider_options:
+                payload[key] = request.provider_options[key]
         return payload
 
     def transform_response(self, *, request: ExtractRequest, payload: Dict[str, Any]) -> ExtractResponse:

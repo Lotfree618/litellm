@@ -48,12 +48,17 @@ def test_extract_permission_allows_explicit_tool_and_admin() -> None:
 def test_extract_routes_are_inference_routes() -> None:
     assert RouteChecks.is_llm_api_route("/v1/extract/web-extract") is True
     assert RouteChecks.is_llm_api_route("/extract/web-extract") is True
-    assert RouteChecks.is_llm_api_route("/firecrawl/v2/scrape") is True
+    assert RouteChecks.is_llm_api_route("/v2/scrape") is True
+    assert RouteChecks.is_llm_api_route("/firecrawl/v2/scrape") is False
 
 
 @pytest.mark.asyncio
 async def test_firecrawl_compatibility_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    observed_request = None
+
     async def fake_execute_extract(**_: Any) -> ExtractResponse:
+        nonlocal observed_request
+        observed_request = _["extract_request"]
         return ExtractResponse(
             data=ExtractData(
                 url="https://example.com",
@@ -65,10 +70,12 @@ async def test_firecrawl_compatibility_response(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr(endpoints, "_execute_extract", fake_execute_extract)
     response = await endpoints.firecrawl_scrape_compatibility_endpoint(
-        request=None,  # type: ignore[arg-type]
         scrape_request=endpoints.FirecrawlScrapeRequest(
             url="https://example.com",
             formats=["markdown"],
+            origin="python-sdk@test",
+            blockAds=True,
+            fastMode=False,
         ),
         user_api_key_dict=UserAPIKeyAuth(user_role=LitellmUserRoles.PROXY_ADMIN),
     )
@@ -79,6 +86,11 @@ async def test_firecrawl_compatibility_response(monkeypatch: pytest.MonkeyPatch)
             "metadata": {"title": "Example"},
             "markdown": "content",
         },
+    }
+    assert observed_request is not None
+    assert observed_request.provider_options == {
+        "blockAds": True,
+        "fastMode": False,
     }
 
 

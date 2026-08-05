@@ -36,6 +36,10 @@ def test_firecrawl_request_and_response_transformation() -> None:
         include_tags=["article"],
         exclude_tags=["nav"],
         max_age=0,
+        provider_options={
+            "blockAds": True,
+            "skipTlsVerification": True,
+        },
     )
 
     assert config.transform_request(request) == {
@@ -45,6 +49,8 @@ def test_firecrawl_request_and_response_transformation() -> None:
         "includeTags": ["article"],
         "excludeTags": ["nav"],
         "maxAge": 0,
+        "blockAds": True,
+        "skipTlsVerification": True,
     }
 
     response = config.transform_response(
