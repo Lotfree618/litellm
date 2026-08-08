@@ -1466,6 +1466,7 @@ class Router:
             extract_tool_name=tool_name,
             request=request,
             original_function=aextract,
+            litellm_logging_obj=_.get("litellm_logging_obj"),
         )
 
     def _initialize_video_endpoints(self):

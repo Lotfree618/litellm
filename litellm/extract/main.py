@@ -9,6 +9,7 @@ from litellm.llms.base_llm.extract.transformation import (
 )
 from litellm.llms.firecrawl.extract.transformation import FirecrawlExtractConfig
 from litellm.types.extract import ExtractRequest, ExtractResponse
+from litellm.utils import client
 
 
 def get_extract_provider_config(provider: str) -> BaseExtractConfig:
@@ -17,6 +18,7 @@ def get_extract_provider_config(provider: str) -> BaseExtractConfig:
     raise ValueError(f"Extract is not supported for provider: {provider}")
 
 
+@client
 async def aextract(
     *,
     request: ExtractRequest,
