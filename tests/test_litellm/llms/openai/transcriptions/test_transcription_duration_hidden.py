@@ -9,6 +9,8 @@ TranscriptionVerbose/Diarized type.
 
 from unittest.mock import patch
 
+import litellm
+import pytest
 from litellm.cost_calculator import completion_cost
 from litellm.litellm_core_utils.llm_response_utils.convert_dict_to_response import (
     convert_to_model_response_object,
@@ -207,3 +209,30 @@ class TestCostCalculatorReadsDurationFromHiddenParams:
         mock_cost_fn.assert_called_once()
         _, kwargs = mock_cost_fn.call_args
         assert kwargs["duration"] == 0.0
+
+    def test_completion_cost_uses_input_seconds_for_audio_transcription(self, monkeypatch):
+        """Transcription uses its input-second rate, not a zero-valued output rate."""
+        monkeypatch.setitem(
+            litellm.model_cost,
+            "openai/test-transcription",
+            {
+                "input_cost_per_second": 0.00011,
+                "litellm_provider": "openai",
+                "mode": "audio_transcription",
+            },
+        )
+        response = TranscriptionResponse(text="test")
+        response._hidden_params = {
+            "audio_transcription_duration": 12.5,
+            "model": "openai/test-transcription",
+            "custom_llm_provider": "openai",
+        }
+
+        cost = completion_cost(
+            completion_response=response,
+            model="openai/test-transcription",
+            call_type="atranscription",
+            custom_llm_provider="openai",
+        )
+
+        assert cost == pytest.approx(0.001375)
