@@ -85,3 +85,43 @@ async def test_router_extract_preserves_proxy_logging_context(monkeypatch: pytes
     )
 
     assert captured["litellm_logging_obj"] is marker
+
+
+@pytest.mark.asyncio
+async def test_extract_router_records_the_selected_provider_in_proxy_logging() -> None:
+    ExtractAPIRouter.reset_state()
+    captured: dict[str, Any] = {}
+
+    async def fake_extract(**kwargs: Any) -> ExtractResponse:
+        captured.update(kwargs)
+        return ExtractResponse(data=ExtractData(url=kwargs["request"].url))
+
+    logging_obj = type(
+        "LoggingContext",
+        (),
+        {"custom_llm_provider": None, "model_call_details": {"custom_llm_provider": None}},
+    )()
+
+    response = await ExtractAPIRouter.async_extract(
+        router_instance=type(
+            "RouterContext",
+            (),
+            {
+                "extract_tools": [
+                    {
+                        "extract_tool_name": "web-extract",
+                        "litellm_params": {"extract_provider": "firecrawl"},
+                    }
+                ]
+            },
+        )(),
+        extract_tool_name="web-extract",
+        request=type("Request", (), {"url": "https://example.com"})(),
+        original_function=fake_extract,
+        litellm_logging_obj=logging_obj,
+    )
+
+    assert response.data.url == "https://example.com"
+    assert captured["custom_llm_provider"] == "firecrawl"
+    assert logging_obj.custom_llm_provider == "firecrawl"
+    assert logging_obj.model_call_details["custom_llm_provider"] == "firecrawl"

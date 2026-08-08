@@ -163,6 +163,20 @@ class ExtractAPIRouter:
                 attempt,
             )
             try:
+                # ``Router.aextract`` creates the standard LiteLLM logging object before
+                # this router chooses a concrete extract deployment. Keep that object in
+                # sync with the selected provider so its normal cost calculator, SpendLog,
+                # and budget accounting use the real route instead of an unqualified tool.
+                if litellm_logging_obj is not None:
+                    selected_provider = params.get("extract_provider")
+                    logging_context = vars(litellm_logging_obj)
+                    logging_context["custom_llm_provider"] = selected_provider
+                    model_call_details = logging_context.get("model_call_details") or getattr(
+                        litellm_logging_obj, "model_call_details", None
+                    )
+                    if isinstance(model_call_details, dict):
+                        model_call_details["custom_llm_provider"] = selected_provider
+
                 return await original_function(
                     model=extract_tool_name,
                     request=request,
