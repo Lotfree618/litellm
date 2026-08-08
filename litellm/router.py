@@ -1451,6 +1451,44 @@ class Router:
 
         self.asearch = self.factory_function(asearch, call_type="asearch")
         self.search = self.factory_function(search, call_type="search")
+        self.aextract = self.factory_function(self._aextract_with_router, call_type="aextract")
+
+    async def _aextract_with_router(
+        self,
+        *,
+        model: str,
+        url: str,
+        formats: list[str] | None = None,
+        only_main_content: bool = True,
+        include_tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        max_age: int | None = None,
+        provider_options: dict[str, Any] | None = None,
+        extract_tool_name: str | None = None,
+        **_: Any,
+    ):
+        from litellm.extract import aextract
+        from litellm.router_utils.extract_api_router import ExtractAPIRouter
+        from litellm.types.extract import ExtractRequest
+
+        tool_name = (extract_tool_name or model or "").strip()
+        if not tool_name:
+            raise ValueError("extract_tool_name is required")
+        request = ExtractRequest(
+            url=url,
+            formats=formats or ["markdown"],
+            only_main_content=only_main_content,
+            include_tags=include_tags or [],
+            exclude_tags=exclude_tags or [],
+            max_age=max_age,
+            provider_options=provider_options or {},
+        )
+        return await ExtractAPIRouter.async_extract(
+            router_instance=self,
+            extract_tool_name=tool_name,
+            request=request,
+            original_function=aextract,
+        )
 
     def _initialize_video_endpoints(self):
         """Initialize video endpoints."""
@@ -5755,6 +5793,13 @@ class Router:
                 return original_function(**kwargs)
 
             return managed_agents_sync_wrapper
+
+        if call_type == "aextract":
+
+            async def extract_async_wrapper(**kwargs):
+                return await original_function(**kwargs)
+
+            return extract_async_wrapper
 
         # Handle asynchronous call types
         async def async_wrapper(
