@@ -19,6 +19,20 @@ from litellm.types.utils import (
 )
 
 
+def test_handler_calculates_duration_before_success_logging(monkeypatch):
+    """OpenAI-compatible STT must have a duration before spend is calculated."""
+    from litellm.llms.openai.transcriptions import handler
+
+    monkeypatch.setattr(handler, "calculate_request_duration", lambda _: 3.25)
+
+    serialized = handler._serialize_transcription_response_for_logging(
+        response=TranscriptionResponse(text="hello"),
+        audio_file=b"audio",
+    )
+
+    assert serialized["_audio_transcription_duration"] == 3.25
+
+
 class TestDiarizedJsonUsageParsing:
     """gpt-4o-transcribe / diarized_json returns a fractional `usage.seconds`."""
 
@@ -55,10 +69,7 @@ class TestDiarizedJsonUsageParsing:
         assert result.usage.seconds == 295.8
 
     def test_usage_duration_object_accepts_float_seconds(self):
-        assert (
-            TranscriptionUsageDurationObject(type="duration", seconds=295.8).seconds
-            == 295.8
-        )
+        assert TranscriptionUsageDurationObject(type="duration", seconds=295.8).seconds == 295.8
 
 
 class TestTranscriptionDurationNotInResponseBody:

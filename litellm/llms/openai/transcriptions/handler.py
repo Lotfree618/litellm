@@ -8,7 +8,10 @@ import litellm
 
 if TYPE_CHECKING:
     from aiohttp import ClientSession
-from litellm.litellm_core_utils.audio_utils.utils import get_audio_file_name
+from litellm.litellm_core_utils.audio_utils.utils import (
+    calculate_request_duration,
+    get_audio_file_name,
+)
 from litellm.litellm_core_utils.litellm_logging import Logging as LiteLLMLoggingObj
 from litellm.llms.base_llm.audio_transcription.transformation import (
     BaseAudioTranscriptionConfig,
@@ -21,6 +24,27 @@ from litellm.utils import (
 )
 
 from ..openai import OpenAIChatCompletion
+
+
+def _serialize_transcription_response_for_logging(
+    response: object,
+    audio_file: FileTypes,
+) -> dict:
+    """Preserve a billable audio duration before LiteLLM emits success callbacks."""
+    if isinstance(response, BaseModel):
+        serialized = response.model_dump()
+    else:
+        serialized = TranscriptionResponse(text=response).model_dump()
+        subtitle_duration = extract_duration_from_srt_or_vtt(response)
+        if subtitle_duration is not None:
+            serialized["_audio_transcription_duration"] = subtitle_duration
+
+    if serialized.get("duration") is None and serialized.get("_audio_transcription_duration") is None:
+        calculated_duration = calculate_request_duration(audio_file)
+        if calculated_duration is not None:
+            serialized["_audio_transcription_duration"] = calculated_duration
+
+    return serialized
 
 
 class OpenAIAudioTranscription(OpenAIChatCompletion):
@@ -139,10 +163,10 @@ class OpenAIAudioTranscription(OpenAIChatCompletion):
             timeout=timeout,
         )
 
-        if isinstance(response, BaseModel):
-            stringified_response = response.model_dump()
-        else:
-            stringified_response = TranscriptionResponse(text=response).model_dump()
+        stringified_response = _serialize_transcription_response_for_logging(
+            response=response,
+            audio_file=audio_file,
+        )
 
         ## LOGGING
         logging_obj.post_call(
@@ -200,12 +224,10 @@ class OpenAIAudioTranscription(OpenAIChatCompletion):
                 timeout=timeout,
             )
             logging_obj.model_call_details["response_headers"] = headers
-            if isinstance(response, BaseModel):
-                stringified_response = response.model_dump()
-            else:
-                duration: Final = extract_duration_from_srt_or_vtt(response)
-                stringified_response = TranscriptionResponse(text=response).model_dump()
-                stringified_response["_audio_transcription_duration"] = duration
+            stringified_response = _serialize_transcription_response_for_logging(
+                response=response,
+                audio_file=audio_file,
+            )
             ## LOGGING
             logging_obj.post_call(
                 input=get_audio_file_name(audio_file),
