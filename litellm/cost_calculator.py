@@ -43,6 +43,7 @@ from litellm.llms.azure_ai.cost_calculator import (
     cost_per_token as azure_ai_cost_per_token,
 )
 from litellm.llms.base_llm.search.transformation import SearchResponse
+from litellm.types.extract import ExtractResponse
 from litellm.llms.bedrock.cost_calculation import (
     cost_per_token as bedrock_cost_per_token,
 )
@@ -580,6 +581,13 @@ def cost_per_token(
             custom_llm_provider=custom_llm_provider,
             number_of_queries=number_of_queries or 1,
             optional_params=(response._hidden_params if response and hasattr(response, "_hidden_params") else None),
+        )
+    elif call_type == "aextract":
+        from litellm.extract.cost_calculator import extract_provider_cost_per_request
+
+        return extract_provider_cost_per_request(
+            model=model,
+            custom_llm_provider=custom_llm_provider,
         )
     elif custom_llm_provider == "vertex_ai":
         cost_router = google_cost_router(
@@ -1719,6 +1727,7 @@ def response_cost_calculator(
         OpenAIModerationResponse,
         Response,
         SearchResponse,
+        ExtractResponse,
     ],
     model: str,
     custom_llm_provider: Optional[str],
@@ -1741,6 +1750,7 @@ def response_cost_calculator(
         "arerank",
         "search",
         "asearch",
+        "aextract",
     ],
     optional_params: dict,
     cache_hit: Optional[bool] = None,

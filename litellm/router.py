@@ -64,9 +64,6 @@ from litellm.constants import (
 )
 from litellm.integrations.custom_logger import CustomLogger
 from litellm.litellm_core_utils.asyncify import run_async_function
-from litellm.litellm_core_utils.request_timeout_resolver import (
-    get_configured_request_timeout,
-)
 from litellm.litellm_core_utils.core_helpers import (
     _get_parent_otel_span_from_kwargs,
     coerce_token_limit,
@@ -77,6 +74,9 @@ from litellm.litellm_core_utils.coroutine_checker import coroutine_checker
 from litellm.litellm_core_utils.credential_accessor import CredentialAccessor
 from litellm.litellm_core_utils.dd_tracing import tracer
 from litellm.litellm_core_utils.litellm_logging import Logging as LiteLLMLogging
+from litellm.litellm_core_utils.request_timeout_resolver import (
+    get_configured_request_timeout,
+)
 from litellm.litellm_core_utils.secret_redaction import redact_string
 from litellm.litellm_core_utils.sensitive_data_masker import (
     SensitiveDataMasker,
@@ -106,13 +106,13 @@ from litellm.router_utils.add_retry_fallback_headers import (
     prepare_response_for_header_attachment,
     response_in_flight_token_count,
 )
+from litellm.router_utils.auto_router_model_naming import (
+    classify_strategy_router_model,
+)
 from litellm.router_utils.batch_utils import (
     _get_router_metadata_variable_name,
     replace_model_in_jsonl,
     should_replace_model_in_jsonl,
-)
-from litellm.router_utils.auto_router_model_naming import (
-    classify_strategy_router_model,
 )
 from litellm.router_utils.client_initalization_utils import InitalizeCachedClient
 from litellm.router_utils.clientside_credential_handler import (
@@ -149,14 +149,14 @@ from litellm.router_utils.health_state_cache import DeploymentHealthCache
 from litellm.router_utils.pre_call_checks.deployment_affinity_check import (
     DeploymentAffinityCheck,
 )
-from litellm.router_utils.pre_call_checks.model_rate_limit_check import (
-    ModelRateLimitingCheck,
-)
 from litellm.router_utils.pre_call_checks.io_token_rate_limit_check import (
     build_io_token_rate_limit_headers,
     deployment_has_io_token_limits,
     refund_stale_reservation_before_retry,
     set_io_token_rate_limit_request_kwargs,
+)
+from litellm.router_utils.pre_call_checks.model_rate_limit_check import (
+    ModelRateLimitingCheck,
 )
 from litellm.router_utils.pre_call_checks.prompt_caching_deployment_check import (
     PromptCachingDeploymentCheck,
@@ -166,6 +166,7 @@ from litellm.router_utils.router_callbacks.track_deployment_metrics import (
     increment_deployment_successes_for_current_minute,
 )
 from litellm.scheduler import FlowItem, Scheduler
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.llms.openai import (
     AllMessageValues,
     FileTypes,
@@ -201,23 +202,20 @@ from litellm.types.router import (
     SearchToolTypedDict,
     TaggedPreRoutingStrategy,
 )
-from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.services import ServiceTypes
 from litellm.types.utils import (
+    PROMPT_QUOTING_ROUTING_DECISION_FIELDS,
     CustomPricingLiteLLMParams,
     GenericBudgetConfigType,
     LiteLLMBatch,
-    shared_backend_model_info,
-)
-from litellm.types.utils import ModelInfo
-from litellm.types.utils import ModelInfo as ModelMapInfo
-from litellm.types.utils import (
-    PROMPT_QUOTING_ROUTING_DECISION_FIELDS,
+    ModelInfo,
     ModelResponseStream,
     StandardLoggingPayload,
     StandardLoggingRoutingDecision,
     Usage,
+    shared_backend_model_info,
 )
+from litellm.types.utils import ModelInfo as ModelMapInfo
 from litellm.utils import (
     CustomStreamWrapper,
     EmbeddingResponse,
@@ -236,6 +234,12 @@ from .router_utils.pattern_match_deployments import PatternMatchRouter
 if TYPE_CHECKING:
     from opentelemetry.trace import Span as _Span
 
+    from litellm.responses.streaming_iterator import (
+        BaseResponsesAPIStreamingIterator,
+    )
+    from litellm.router_strategy.adaptive_router.adaptive_router import (
+        AdaptiveRouter,
+    )
     from litellm.router_strategy.auto_router.auto_router import (
         AutoRouter,
         PreRoutingHookResponse,
@@ -243,14 +247,8 @@ if TYPE_CHECKING:
     from litellm.router_strategy.complexity_router.complexity_router import (
         ComplexityRouter,
     )
-    from litellm.router_strategy.adaptive_router.adaptive_router import (
-        AdaptiveRouter,
-    )
     from litellm.router_strategy.quality_router.quality_router import (
         QualityRouter,
-    )
-    from litellm.responses.streaming_iterator import (
-        BaseResponsesAPIStreamingIterator,
     )
     from litellm.types.llms.base import BaseLiteLLMOpenAIResponseObject
     from litellm.types.llms.openai import (
@@ -1431,6 +1429,44 @@ class Router:
 
         self.asearch = self.factory_function(asearch, call_type="asearch")
         self.search = self.factory_function(search, call_type="search")
+        self.aextract = self.factory_function(self._aextract_with_router, call_type="aextract")
+
+    async def _aextract_with_router(
+        self,
+        *,
+        model: str,
+        url: str,
+        formats: list[str] | None = None,
+        only_main_content: bool = True,
+        include_tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        max_age: int | None = None,
+        provider_options: dict[str, Any] | None = None,
+        extract_tool_name: str | None = None,
+        **_: Any,
+    ):
+        from litellm.extract import aextract
+        from litellm.router_utils.extract_api_router import ExtractAPIRouter
+        from litellm.types.extract import ExtractRequest
+
+        tool_name = (extract_tool_name or model or "").strip()
+        if not tool_name:
+            raise ValueError("extract_tool_name is required")
+        request = ExtractRequest(
+            url=url,
+            formats=formats or ["markdown"],
+            only_main_content=only_main_content,
+            include_tags=include_tags or [],
+            exclude_tags=exclude_tags or [],
+            max_age=max_age,
+            provider_options=provider_options or {},
+        )
+        return await ExtractAPIRouter.async_extract(
+            router_instance=self,
+            extract_tool_name=tool_name,
+            request=request,
+            original_function=aextract,
+        )
 
     def _initialize_video_endpoints(self):
         """Initialize video endpoints."""
@@ -4599,11 +4635,10 @@ class Router:
         _aresponses_streaming_iterator so MidStreamFallbackError raised
         during iteration triggers the Router's cross-provider fallback chain.
         """
+        from litellm.litellm_core_utils.core_helpers import safe_deep_copy
         from litellm.responses.streaming_iterator import (
             BaseResponsesAPIStreamingIterator,
         )
-
-        from litellm.litellm_core_utils.core_helpers import safe_deep_copy
 
         # Snapshot the request kwargs before _ageneric_api_call_with_fallbacks
         # mutates them. A shallow copy alone is not enough: the primary
@@ -5741,6 +5776,13 @@ class Router:
                 return original_function(**kwargs)
 
             return managed_agents_sync_wrapper
+
+        if call_type == "aextract":
+
+            async def extract_async_wrapper(**kwargs):
+                return await original_function(**kwargs)
+
+            return extract_async_wrapper
 
         # Handle asynchronous call types
         async def async_wrapper(

@@ -63,9 +63,10 @@ async def test_firecrawl_compatibility_response(monkeypatch: pytest.MonkeyPatch)
             )
         )
 
-    monkeypatch.setattr(endpoints, "_execute_extract", fake_execute_extract)
+    monkeypatch.setattr(endpoints, "_execute_extract_via_proxy", fake_execute_extract)
     response = await endpoints.firecrawl_scrape_compatibility_endpoint(
         request=None,  # type: ignore[arg-type]
+        fastapi_response=None,  # type: ignore[arg-type]
         scrape_request=endpoints.FirecrawlScrapeRequest(
             url="https://example.com",
             formats=["markdown"],
@@ -108,7 +109,7 @@ def test_extract_tools_permission_is_persistable_in_object_permission_schema() -
         Path("litellm/proxy/schema.prisma"),
         Path("litellm-proxy-extras/litellm_proxy_extras/schema.prisma"),
     ]
-    expected = 'extract_tools         String[]       @default([])'
+    expected = "extract_tools         String[]       @default([])"
     schemas = [path.read_text() for path in schema_paths]
     assert all(expected in schema for schema in schemas)
     assert schemas[0] == schemas[1] == schemas[2]
