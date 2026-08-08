@@ -126,6 +126,7 @@ class ExtractAPIRouter:
         extract_tool_name: str,
         request: ExtractRequest,
         original_function: Callable[..., Any],
+        litellm_logging_obj: object | None = None,
         max_attempts: int = 2,
     ) -> ExtractResponse:
         matching_tools = [
@@ -163,11 +164,14 @@ class ExtractAPIRouter:
             )
             try:
                 return await original_function(
+                    model=extract_tool_name,
                     request=request,
                     extract_provider=params.get("extract_provider"),
+                    custom_llm_provider=params.get("extract_provider"),
                     api_key=params.get("api_key"),
                     api_base=params.get("api_base"),
                     timeout=float(params.get("timeout") or 50),
+                    litellm_logging_obj=litellm_logging_obj,
                 )
             except ExtractProviderError as error:
                 last_error = error

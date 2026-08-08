@@ -56,3 +56,32 @@ async def test_router_extract_uses_the_selected_extract_tool(monkeypatch: pytest
     assert captured["router_instance"] is router
     assert captured["extract_tool_name"] == "web-extract"
     assert captured["request"].url == "https://example.com"
+
+
+@pytest.mark.asyncio
+async def test_router_extract_preserves_proxy_logging_context(monkeypatch: pytest.MonkeyPatch) -> None:
+    router = Router(
+        model_list=[],
+        extract_tools=[
+            {
+                "extract_tool_name": "web-extract",
+                "litellm_params": {"extract_provider": "firecrawl"},
+            }
+        ],
+    )
+    captured: dict[str, Any] = {}
+
+    async def fake_async_extract(**kwargs: Any) -> ExtractResponse:
+        captured.update(kwargs)
+        return ExtractResponse(data=ExtractData(url=kwargs["request"].url))
+
+    monkeypatch.setattr(ExtractAPIRouter, "async_extract", fake_async_extract)
+    marker = object()
+
+    await router.aextract(
+        model="web-extract",
+        url="https://example.com",
+        litellm_logging_obj=marker,
+    )
+
+    assert captured["litellm_logging_obj"] is marker

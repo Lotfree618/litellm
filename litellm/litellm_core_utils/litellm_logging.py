@@ -67,10 +67,10 @@ from litellm.litellm_core_utils.redact_messages import (
 )
 from litellm.llms.base_llm.ocr.transformation import OCRResponse
 from litellm.llms.base_llm.search.transformation import SearchResponse
-from litellm.types.extract import ExtractResponse
 from litellm.responses.utils import ResponseAPILoggingUtils
 from litellm.types.agents import LiteLLMSendMessageResponse
 from litellm.types.containers.main import ContainerObject
+from litellm.types.extract import ExtractResponse
 from litellm.types.llms.openai import (
     AllMessageValues,
     Batch,
@@ -1357,6 +1357,7 @@ class Logging(LiteLLMLoggingBaseClass):
             LiteLLMRealtimeStreamLoggingObject,
             OpenAIModerationResponse,
             "SearchResponse",
+            "ExtractResponse",
             dict,
             list,
         ],
@@ -1530,6 +1531,7 @@ class Logging(LiteLLMLoggingBaseClass):
             and litellm_params.get(CallTypes.aembedding.value, False) is not True
             and litellm_params.get(CallTypes.aimage_generation.value, False) is not True
             and litellm_params.get(CallTypes.atranscription.value, False) is not True
+            and litellm_params.get(CallTypes.aextract.value, False) is not True
             and litellm_params.get(CallTypes.allm_passthrough_route.value, False) is not True
             and litellm_params.get(CallTypes.aanthropic_messages.value, False) is not True
             and litellm_params.get(CallTypes.agenerate_content.value, False) is not True
