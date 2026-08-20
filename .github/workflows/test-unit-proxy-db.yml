@@ -183,6 +183,12 @@ jobs:
             dist: loadscope
             timeout: 15
 
+          - test-group: extract-tools
+            test-path: "tests/extract_tests"
+            workers: 2
+            dist: loadscope
+            timeout: 15
+
           # ---- guardrails + budget + hooks: split into 2 ----
           - test-group: guardrails-hooks
             test-path: >-
