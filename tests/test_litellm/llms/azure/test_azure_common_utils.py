@@ -611,6 +611,10 @@ async def test_ensure_initialize_azure_sdk_client_always_used(call_type):
         pytest.skip(
             f"Skipping {call_type.value} because OCR calls don't use initialize_azure_sdk_client"
         )
+    elif call_type == CallTypes.aextract:
+        pytest.skip(
+            f"Skipping {call_type.value} because Extract calls don't use Azure SDK client initialization"
+        )
     # Mock the initialize_azure_sdk_client function
     with patch(patch_target) as mock_init_azure:
         # Also mock async_function_with_fallbacks to prevent actual API calls
