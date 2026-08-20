@@ -7,8 +7,10 @@ from litellm.llms.base_llm.extract.transformation import (
     BaseExtractConfig,
     ExtractProviderError,
 )
+from litellm.llms.custom_httpx.http_handler import get_async_httpx_client
 from litellm.llms.firecrawl.extract.transformation import FirecrawlExtractConfig
 from litellm.types.extract import ExtractRequest, ExtractResponse
+from litellm.types.llms.custom_http import httpxSpecialProvider
 from litellm.utils import client
 
 
@@ -39,23 +41,24 @@ async def aextract(
     url = provider_config.get_complete_url(api_base=api_base)
     payload = provider_config.transform_request(request)
 
-    owns_client = client is None
-    async_client = client or httpx.AsyncClient(timeout=timeout)
-    try:
-        response = await async_client.post(url, headers=headers, json=payload, timeout=timeout)
-        if response.status_code >= 400:
-            raise ExtractProviderError(
-                f"{extract_provider} extract failed with status {response.status_code}",
-                status_code=response.status_code,
-                headers={str(key): str(value) for key, value in response.headers.items()},
-            )
-        response_payload = response.json()
-        if not isinstance(response_payload, dict):
-            raise ValueError(f"{extract_provider} returned a non-object response")
-        return provider_config.transform_response(request=request, payload=response_payload)
-    finally:
-        if owns_client:
-            await async_client.aclose()
+    async_client = (
+        client
+        or get_async_httpx_client(
+            llm_provider=httpxSpecialProvider.Extract,
+            params={"timeout": timeout},
+        ).client
+    )
+    response = await async_client.post(url, headers=headers, json=payload, timeout=timeout)
+    if response.status_code >= 400:
+        raise ExtractProviderError(
+            f"{extract_provider} extract failed with status {response.status_code}",
+            status_code=response.status_code,
+            headers={str(key): str(value) for key, value in response.headers.items()},
+        )
+    response_payload = response.json()
+    if not isinstance(response_payload, dict):
+        raise ValueError(f"{extract_provider} returned a non-object response")
+    return provider_config.transform_response(request=request, payload=response_payload)
 
 
 def extract(**kwargs: Any) -> ExtractResponse:

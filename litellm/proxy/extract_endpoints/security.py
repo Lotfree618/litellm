@@ -3,6 +3,8 @@ from urllib.parse import urlparse
 import httpx
 
 from litellm.litellm_core_utils.url_utils import SSRFError, async_safe_get, validate_url
+from litellm.llms.custom_httpx.http_handler import get_async_httpx_client
+from litellm.types.llms.custom_http import httpxSpecialProvider
 
 UnsafeExtractURL = SSRFError
 
@@ -19,8 +21,10 @@ async def validate_public_redirect_chain(
     *,
     client: httpx.AsyncClient | None = None,
 ) -> None:
-    owns_client = client is None
-    async_client = client or httpx.AsyncClient(timeout=10, follow_redirects=False)
+    async_client = client or get_async_httpx_client(
+        llm_provider=httpxSpecialProvider.Extract,
+        params={"timeout": 10},
+    )
     try:
         await validate_public_url(url)
         response = await async_safe_get(
@@ -34,6 +38,3 @@ async def validate_public_redirect_chain(
         await response.aclose()
     except httpx.HTTPError as error:
         raise UnsafeExtractURL("URL redirect validation failed") from error
-    finally:
-        if owns_client:
-            await async_client.aclose()

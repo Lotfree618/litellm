@@ -1,7 +1,13 @@
+from unittest.mock import AsyncMock, Mock
+
+import httpx
 import pytest
 
+import litellm.extract.main as extract_main
+from litellm.extract.main import aextract
 from litellm.llms.firecrawl.extract.transformation import FirecrawlExtractConfig
 from litellm.types.extract import ExtractRequest
+from litellm.types.llms.custom_http import httpxSpecialProvider
 
 
 def test_firecrawl_headers_and_cloud_url() -> None:
@@ -79,3 +85,37 @@ def test_firecrawl_unknown_provider_option_is_rejected() -> None:
                 provider_options={"proxy": "auto"},
             )
         )
+
+
+@pytest.mark.asyncio
+async def test_extract_uses_cached_firecrawl_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    async_client = Mock()
+    async_client.post = AsyncMock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "success": True,
+                "data": {
+                    "markdown": "content",
+                    "metadata": {"sourceURL": "https://example.com"},
+                },
+            },
+            request=httpx.Request("POST", "https://api.firecrawl.dev/v2/scrape"),
+        )
+    )
+    cached_handler = Mock(client=async_client)
+    get_async_client = Mock(return_value=cached_handler)
+    monkeypatch.setattr(extract_main, "get_async_httpx_client", get_async_client)
+
+    response = await aextract(
+        request=ExtractRequest(url="https://example.com"),
+        extract_provider="firecrawl",
+        api_key="fc-test",
+    )
+
+    assert response.data.contents.markdown == "content"
+    get_async_client.assert_called_once_with(
+        llm_provider=httpxSpecialProvider.Extract,
+        params={"timeout": 50},
+    )
+    async_client.post.assert_awaited_once()
