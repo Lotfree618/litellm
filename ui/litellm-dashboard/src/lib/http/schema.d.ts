@@ -4244,6 +4244,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/firecrawl/v2/scrape": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Firecrawl Scrape Compatibility Endpoint */
+        post: operations["firecrawl_scrape_compatibility_endpoint_firecrawl_v2_scrape_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/gateway/daily/activity": {
         parameters: {
             query?: never;
@@ -4261,23 +4278,6 @@ export interface paths {
         get: operations["get_gateway_daily_activity_gateway_daily_activity_get"];
         put?: never;
         post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/firecrawl/v2/scrape": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Firecrawl Scrape Compatibility Endpoint */
-        post: operations["firecrawl_scrape_compatibility_endpoint_firecrawl_v2_scrape_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -27091,7 +27091,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Stream Timeout */
-            stream_timeout?: string | number | null;
+            stream_timeout?: number | string | null;
             /** Tag Regex */
             tag_regex?: string[] | null;
             /** Tags */
@@ -35713,7 +35713,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Stream Timeout */
-            stream_timeout?: string | number | null;
+            stream_timeout?: number | string | null;
             /** Tag Regex */
             tag_regex?: string[] | null;
             /** Tags */
@@ -42016,40 +42016,6 @@ export interface operations {
             };
         };
     };
-    get_gateway_daily_activity_gateway_daily_activity_get: {
-        parameters: {
-            query?: {
-                /** @description Start date in YYYY-MM-DD format */
-                start_date?: string | null;
-                /** @description End date in YYYY-MM-DD format */
-                end_date?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["GatewayRequestActivityResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     firecrawl_scrape_compatibility_endpoint_firecrawl_v2_scrape_post: {
         parameters: {
             query?: never;
@@ -42072,6 +42038,40 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_gateway_daily_activity_gateway_daily_activity_get: {
+        parameters: {
+            query?: {
+                /** @description Start date in YYYY-MM-DD format */
+                start_date?: string | null;
+                /** @description End date in YYYY-MM-DD format */
+                end_date?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GatewayRequestActivityResponse"];
                 };
             };
             /** @description Validation Error */
