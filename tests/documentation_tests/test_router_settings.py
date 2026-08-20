@@ -35,6 +35,8 @@ def get_init_params(cls: Type) -> list[str]:
 router_init_params = set(get_init_params(litellm.router.Router))
 print(router_init_params)
 router_init_params.remove("model_list")
+fork_only_router_settings = {"extract_tools"}
+assert fork_only_router_settings <= router_init_params
 
 # Parse the documentation to extract documented keys
 _test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -66,7 +68,7 @@ except Exception as e:
 
 
 # Compare and find undocumented keys
-undocumented_keys = router_init_params - documented_keys
+undocumented_keys = router_init_params - documented_keys - fork_only_router_settings
 
 # Print results
 print("Keys expected in 'router settings' (found in code):")
