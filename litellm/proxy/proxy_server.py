@@ -518,6 +518,7 @@ try:
 except ImportError:
     build_billing_metrics_recorder = None
     shutdown_billing_metrics_recorder = None
+from litellm.proxy.extract_endpoints.endpoints import router as extract_router
 from litellm.proxy.middleware.in_flight_requests_middleware import (
     InFlightRequestsMiddleware,
 )
@@ -554,7 +555,6 @@ from litellm.proxy.rerank_endpoints.endpoints import router as rerank_router
 from litellm.proxy.response_api_endpoints.endpoints import router as response_router
 from litellm.proxy.route_llm_request import route_request
 from litellm.proxy.search_endpoints.endpoints import router as search_router
-from litellm.proxy.extract_endpoints.endpoints import router as extract_router
 from litellm.proxy.shutdown.graceful_shutdown_manager import GracefulShutdownManager
 from litellm.proxy.spend_tracking.budget_reservation import get_budget_window_start
 from litellm.proxy.spend_tracking.spend_management_endpoints import (
@@ -612,6 +612,7 @@ from litellm.secret_managers.main import (
     normalize_nonempty_secret_str,
     str_to_bool,
 )
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.integrations.slack_alerting import SlackAlertingArgs
 from litellm.types.llms.anthropic import (
     AnthropicMessagesRequest,
@@ -636,7 +637,6 @@ from litellm.types.router import (
     SearchToolTypedDict,
     updateDeployment,
 )
-from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.router import ModelInfo as RouterModelInfo
 from litellm.types.scheduler import DefaultPriorities
 from litellm.types.secret_managers.main import (
@@ -4417,12 +4417,12 @@ class ProxyConfig:
 
         return search_tools_parsed if search_tools_parsed else None
 
-    def parse_extract_tools(self, config: dict) -> Optional[List[ExtractToolTypedDict]]:
+    def parse_extract_tools(self, config: dict) -> list[ExtractToolTypedDict] | None:
         extract_tools_raw = config.get("extract_tools")
         if not extract_tools_raw:
             return None
 
-        extract_tools_parsed: List[ExtractToolTypedDict] = []
+        extract_tools_parsed: list[ExtractToolTypedDict] = []
         for index, extract_tool in enumerate(extract_tools_raw):
             tool = copy.deepcopy(extract_tool)
             extract_tool_name = tool.get("extract_tool_name", "")
