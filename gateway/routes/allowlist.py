@@ -69,6 +69,8 @@ GATEWAY_PATH_PREFIXES: tuple[str, ...] = (
     "/videos",
     "/v1/search",
     "/search",
+    "/v1/extract/",
+    "/extract/",
     "/v1/containers",
     "/containers",
     "/v1/evals",
@@ -119,6 +121,7 @@ GATEWAY_EXACT_PATHS: frozenset[str] = frozenset(
         "/docs/oauth2-redirect",
         "/redoc",
         "/test",
+        "/firecrawl/v2/scrape",
     }
 )
 

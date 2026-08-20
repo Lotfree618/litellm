@@ -717,6 +717,7 @@ _EXPECTED_CUSTOMER = {
         "mcp_toolsets": None,
         "blocked_tools": [],
         "search_tools": [],
+        "extract_tools": [],
         "mcp_tool_search_enabled": None,
     },
 }
