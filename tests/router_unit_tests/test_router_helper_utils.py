@@ -2502,6 +2502,44 @@ async def test_asearch_with_fallbacks_helper_missing_search_provider():
         )
 
 
+@pytest.mark.asyncio
+async def test_aextract_with_router_delegates_to_extract_router():
+    from litellm.router_utils.extract_api_router import ExtractAPIRouter
+    from litellm.types.extract import ExtractData, ExtractResponse
+
+    router = Router(
+        model_list=[],
+        extract_tools=[
+            {
+                "extract_tool_name": "web-extract",
+                "litellm_params": {"extract_provider": "firecrawl"},
+            }
+        ],
+    )
+    expected_response = ExtractResponse(data=ExtractData(url="https://example.com"))
+
+    with patch.object(
+        ExtractAPIRouter,
+        "async_extract",
+        new=AsyncMock(return_value=expected_response),
+    ) as mock_async_extract:
+        response = await router._aextract_with_router(
+            model="web-extract",
+            url="https://example.com",
+            formats=["markdown"],
+            only_main_content=False,
+        )
+
+    assert response is expected_response
+    mock_async_extract.assert_awaited_once()
+    request = mock_async_extract.await_args.kwargs["request"]
+    assert mock_async_extract.await_args.kwargs["router_instance"] is router
+    assert mock_async_extract.await_args.kwargs["extract_tool_name"] == "web-extract"
+    assert request.url == "https://example.com"
+    assert request.formats == ["markdown"]
+    assert request.only_main_content is False
+
+
 def test_get_first_default_fallback():
     """Test _get_first_default_fallback method"""
     # Test with default fallback ("*")
