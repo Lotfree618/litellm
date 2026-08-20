@@ -1,10 +1,8 @@
-from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
 
 from litellm.litellm_core_utils.url_utils import SSRFError, async_safe_get, validate_url
-
 
 UnsafeExtractURL = SSRFError
 
@@ -19,7 +17,7 @@ async def validate_public_url(url: str) -> None:
 async def validate_public_redirect_chain(
     url: str,
     *,
-    client: Optional[httpx.AsyncClient] = None,
+    client: httpx.AsyncClient | None = None,
 ) -> None:
     owns_client = client is None
     async_client = client or httpx.AsyncClient(timeout=10, follow_redirects=False)

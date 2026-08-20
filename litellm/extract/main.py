@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any
 
 import httpx
 
@@ -23,11 +23,11 @@ async def aextract(
     *,
     request: ExtractRequest,
     extract_provider: str,
-    api_key: Optional[str] = None,
-    api_base: Optional[str] = None,
+    api_key: str | None = None,
+    api_base: str | None = None,
     timeout: float = 50,
-    extra_headers: Optional[Dict[str, str]] = None,
-    client: Optional[httpx.AsyncClient] = None,
+    extra_headers: dict[str, str] | None = None,
+    client: httpx.AsyncClient | None = None,
     **_: Any,
 ) -> ExtractResponse:
     provider_config = get_extract_provider_config(extract_provider)

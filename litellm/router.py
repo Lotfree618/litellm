@@ -155,6 +155,7 @@ from litellm.router_utils.router_callbacks.track_deployment_metrics import (
     increment_deployment_successes_for_current_minute,
 )
 from litellm.scheduler import FlowItem, Scheduler
+from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.llms.openai import (
     AllMessageValues,
     FileTypes,
@@ -190,7 +191,6 @@ from litellm.types.router import (
     SearchToolTypedDict,
     TaggedPreRoutingStrategy,
 )
-from litellm.types.extract import ExtractToolTypedDict
 from litellm.types.services import ServiceTypes
 from litellm.types.utils import (
     PROMPT_QUOTING_ROUTING_DECISION_FIELDS,

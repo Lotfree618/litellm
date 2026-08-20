@@ -1,9 +1,10 @@
 import asyncio
 import email.utils
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from time import monotonic
-from typing import Any, Callable, Dict, List, Optional, Set
+from typing import Any
 
 from litellm._logging import verbose_router_logger
 from litellm.llms.base_llm.extract.transformation import ExtractProviderError
@@ -24,8 +25,8 @@ class _FailureDomainState:
 
 class ExtractAPIRouter:
     _lock = asyncio.Lock()
-    _credential_states: Dict[str, _CredentialState] = {}
-    _domain_states: Dict[str, _FailureDomainState] = {}
+    _credential_states: dict[str, _CredentialState] = {}
+    _domain_states: dict[str, _FailureDomainState] = {}
 
     @classmethod
     def reset_state(cls) -> None:
@@ -33,15 +34,15 @@ class ExtractAPIRouter:
         cls._domain_states.clear()
 
     @staticmethod
-    def _credential_id(tool: Dict[str, Any], index: int) -> str:
+    def _credential_id(tool: dict[str, Any], index: int) -> str:
         return str(tool.get("extract_tool_id") or f"extract-{index}")
 
     @staticmethod
-    def _failure_domain(tool: Dict[str, Any], credential_id: str) -> str:
+    def _failure_domain(tool: dict[str, Any], credential_id: str) -> str:
         return str(tool.get("litellm_params", {}).get("failure_domain") or credential_id)
 
     @staticmethod
-    def _retry_after_seconds(headers: Dict[str, str], default_seconds: float = 45.0) -> float:
+    def _retry_after_seconds(headers: dict[str, str], default_seconds: float = 45.0) -> float:
         retry_after = headers.get("retry-after") or headers.get("Retry-After")
         if not retry_after:
             return default_seconds
@@ -60,13 +61,13 @@ class ExtractAPIRouter:
     async def _acquire_tool(
         cls,
         *,
-        tools: List[Dict[str, Any]],
-        attempted_credentials: Set[str],
-        attempted_domains: Set[str],
-    ) -> tuple[Dict[str, Any], str, str]:
+        tools: list[dict[str, Any]],
+        attempted_credentials: set[str],
+        attempted_domains: set[str],
+    ) -> tuple[dict[str, Any], str, str]:
         async with cls._lock:
             now = monotonic()
-            candidates: List[tuple[float, str, Dict[str, Any], str]] = []
+            candidates: list[tuple[float, str, dict[str, Any], str]] = []
             for index, tool in enumerate(tools):
                 credential_id = cls._credential_id(tool, index)
                 failure_domain = cls._failure_domain(tool, credential_id)
@@ -137,9 +138,9 @@ class ExtractAPIRouter:
         if not matching_tools:
             raise ValueError(f"Extract tool '{extract_tool_name}' not found")
 
-        attempted_credentials: Set[str] = set()
-        attempted_domains: Set[str] = set()
-        last_error: Optional[BaseException] = None
+        attempted_credentials: set[str] = set()
+        attempted_domains: set[str] = set()
+        last_error: BaseException | None = None
 
         for attempt in range(1, max_attempts + 1):
             try:

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import ORJSONResponse
@@ -13,11 +13,11 @@ router = APIRouter()
 
 class FirecrawlScrapeRequest(BaseModel):
     url: str
-    formats: List[str] = Field(default_factory=lambda: ["markdown"])
+    formats: list[str] = Field(default_factory=lambda: ["markdown"])
     only_main_content: bool = Field(default=True, alias="onlyMainContent")
-    include_tags: List[str] = Field(default_factory=list, alias="includeTags")
-    exclude_tags: List[str] = Field(default_factory=list, alias="excludeTags")
-    max_age: Optional[int] = Field(default=None, alias="maxAge", ge=0)
+    include_tags: list[str] = Field(default_factory=list, alias="includeTags")
+    exclude_tags: list[str] = Field(default_factory=list, alias="excludeTags")
+    max_age: int | None = Field(default=None, alias="maxAge", ge=0)
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -27,7 +27,7 @@ def _is_proxy_admin(user_api_key_dict: UserAPIKeyAuth) -> bool:
     return role in {LitellmUserRoles.PROXY_ADMIN, LitellmUserRoles.PROXY_ADMIN_VIEW_ONLY}
 
 
-def _permission_extract_tools(permission: Any) -> List[str]:
+def _permission_extract_tools(permission: Any) -> list[str]:
     if permission is None:
         return []
     value = getattr(permission, "extract_tools", None)
@@ -135,7 +135,7 @@ async def extract_endpoint(
     extract_tool_name: str,
     extract_request: ExtractRequest,
     user_api_key_dict: UserAPIKeyAuth = Depends(user_api_key_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     _authorize_extract_tool(extract_tool_name=extract_tool_name, user_api_key_dict=user_api_key_dict)
     response = await _execute_extract_via_proxy(
         request=request,
@@ -158,7 +158,7 @@ async def firecrawl_scrape_compatibility_endpoint(
     fastapi_response: Response,
     scrape_request: FirecrawlScrapeRequest,
     user_api_key_dict: UserAPIKeyAuth = Depends(user_api_key_auth),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     extract_tool_name = "web-extract"
     _authorize_extract_tool(extract_tool_name=extract_tool_name, user_api_key_dict=user_api_key_dict)
     try:
@@ -183,7 +183,7 @@ async def firecrawl_scrape_compatibility_endpoint(
         user_api_key_dict=user_api_key_dict,
     )
     data = response.data
-    firecrawl_data: Dict[str, Any] = {
+    firecrawl_data: dict[str, Any] = {
         "metadata": data.metadata,
     }
     if data.contents.markdown is not None:
